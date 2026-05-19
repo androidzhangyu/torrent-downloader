@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>资源下载神器 - Torrent Downloader</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/webtorrent/2.0.32/webtorrent.min.js"></script>
+<style>
+:root{--bg:#0f0f14;--bg-card:#1a1a24;--bg-card-hover:#22222f;--bg-input:#252535;--border:#2e2e42;--accent:#6c5ce7;--accent2:#00cec9;--accent3:#fd79a8;--text:#e0e0e8;--text-dim:#8888a0;--text-bright:#fff;--green:#00b894;--yellow:#fdcb6e;--red:#e17055;--radius:12px;--radius-sm:8px;--shadow:0 8px 32px rgba(0,0,0,.4);--transition:.25s ease}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+header{text-align:center;padding:28px 20px 16px;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);border-bottom:1px solid var(--border);position:relative}
+header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3))}
+header h1{font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:1px}
+header p{color:var(--text-dim);font-size:14px;margin-top:4px}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+.search-section{margin-bottom:28px}
+.search-box{display:flex;gap:10px;flex-wrap:wrap}
+.search-box input[type="text"]{flex:1;min-width:200px;padding:14px 18px;border:2px solid var(--border);border-radius:var(--radius);background:var(--bg-input);color:var(--text);font-size:15px;outline:none;transition:var(--transition)}
+.search-box input[type="text"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,92,231,.2)}
+.search-box input::placeholder{color:var(--text-dim)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border:none;border-radius:var(--radius);font-size:15px;font-weight:600;cursor:pointer;transition:var(--transition);white-space:nowrap}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#a29bfe);color:#fff}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(108,92,231,.4)}
+.btn-accent{background:linear-gradient(135deg,var(--accent2),#55efc4);color:#1a1a24}
+.btn-accent:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,206,201,.3)}
+.btn-danger{background:linear-gradient(135deg,var(--red),#e17055);color:#fff}
+.btn-danger:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(225,112,85,.3)}
+.btn-sm{padding:8px 16px;font-size:13px;border-radius:var(--radius-sm)}
+.filters{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.filters label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-dim);cursor:pointer}
+.filters label:hover{color:var(--text)}
+.filters input[type="checkbox"]{accent-color:var(--accent);width:16px;height:16px}
+.filters .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}
+.badge-movie{background:#6c5ce7;color:#fff}
+.badge-tv{background:#00cec9;color:#1a1a24}
+.badge-game{background:#fd79a8;color:#fff}
+.badge-music{background:#fdcb6e;color:#1a1a24}
+.badge-app{background:#00b894;color:#fff}
+.badge-other{background:#636e72;color:#fff}
+.status{text-align:center;padding:40px 20px;color:var(--text-dim)}
+.status .spinner{display:inline-block;width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.results-table{width:100%;border-collapse:collapse;background:var(--bg-card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.results-table thead th{background:var(--bg-card-hover);padding:14px 16px;text-align:left;font-size:13px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+.results-table tbody tr{border-bottom:1px solid var(--border);transition:var(--transition);cursor:pointer}
+.results-table tbody tr:last-child{border-bottom:none}
+.results-table tbody tr:hover{background:var(--bg-card-hover)}
+.results-table td{padding:14px 16px;font-size:14px;vertical-align:middle}
+.results-table .col-name{min-width:260px}
+.results-table .col-name .name{color:var(--text-bright);font-weight:500;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.results-table .col-name .sub{font-size:12px;color:var(--text-dim);margin-top:2px}
+.results-table .col-size{white-space:nowrap;width:80px}
+.results-table .col-seed{white-space:nowrap;width:70px;text-align:center}
+.results-table .col-leech{white-space:nowrap;width:70px;text-align:center}
+.results-table .col-date{white-space:nowrap;width:90px;font-size:13px;color:var(--text-dim)}
+.results-table .col-action{white-space:nowrap;width:140px;text-align:right}
+.seed-high{color:var(--green);font-weight:700}
+.seed-mid{color:var(--yellow);font-weight:600}
+.seed-low{color:var(--red);font-weight:500}
+.detail-panel{background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow);margin-top:20px;display:none;overflow:hidden}
+.detail-panel.active{display:block}
+.detail-header{display:flex;justify-content:space-between;align-items:flex-start;padding:20px 24px;border-bottom:1px solid var(--border);gap:16px;flex-wrap:wrap}
+.detail-header .info h2{font-size:18px;color:var(--text-bright);margin-bottom:6px;word-break:break-word}
+.detail-header .info .meta{font-size:13px;color:var(--text-dim);display:flex;gap:16px;flex-wrap:wrap}
+.detail-header .info .meta span{display:inline-flex;align-items:center;gap:4px}
+.detail-header .actions{display:flex;gap:8px;flex-wrap:wrap}
+.detail-body{padding:20px 24px}
+.file-list{list-style:none;border:1px solid var(--border);border-radius:var(--radius-sm);max-height:360px;overflow-y:auto}
+.file-list li{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;transition:var(--transition)}
+.file-list li:last-child{border-bottom:none}
+.file-list li:hover{background:var(--bg-input)}
+.file-list .file-icon{margin-right:10px;opacity:.6}
+.file-list .file-name{flex:1;word-break:break-all}
+.file-list .file-size{color:var(--text-dim);white-space:nowrap;margin-left:12px}
+.download-manager{background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow);margin-top:20px;display:none}
+.download-manager.active{display:block}
+.dl-header{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border)}
+.dl-header h3{font-size:16px;color:var(--text-bright)}
+.dl-item{padding:16px 24px;border-bottom:1px solid var(--border)}
+.dl-item:last-child{border-bottom:none}
+.dl-item .dl-name{font-size:14px;font-weight:500;margin-bottom:8px;word-break:break-word}
+.dl-item .dl-bar{width:100%;height:8px;background:var(--bg-input);border-radius:4px;overflow:hidden;margin-bottom:8px}
+.dl-item .dl-bar .dl-progress{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .5s ease;width:0%}
+.dl-item .dl-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--text-dim);flex-wrap:wrap;gap:8px}
+.dl-item .dl-meta .speed{color:var(--accent2);font-weight:600}
+.preview-content{margin-top:16px}
+.preview-content img,.preview-content video{max-width:100%;max-height:500px;border-radius:var(--radius-sm)}
+.preview-content audio{width:100%}
+.preview-text{background:var(--bg-input);padding:16px;border-radius:var(--radius-sm);max-height:400px;overflow:auto;white-space:pre-wrap;font-family:Consolas,'Courier New',monospace;font-size:13px;line-height:1.5}
+.manual-input{margin-top:16px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.manual-input summary{cursor:pointer;font-size:14px;font-weight:500;color:var(--text-dim);user-select:none}
+.manual-input summary:hover{color:var(--text)}
+.manual-input .input-group{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.manual-input .input-group input{flex:1;min-width:200px;padding:10px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:13px;outline:none;font-family:Consolas,'Courier New',monospace}
+.manual-input .input-group input:focus{border-color:var(--accent)}
+.tabs{display:flex;gap:2px;margin-bottom:16px;background:var(--bg-input);border-radius:var(--radius-sm);padding:3px;overflow-x:auto}
+.tabs button{padding:8px 20px;border:none;border-radius:6px;background:transparent;color:var(--text-dim);font-size:13px;font-weight:500;cursor:pointer;transition:var(--transition);white-space:nowrap}
+.tabs button:hover{color:var(--text)}
+.tabs button.active{background:var(--accent);color:#fff}
+.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 20px;border-radius:var(--radius-sm);background:var(--bg-card);border:1px solid var(--border);box-shadow:var(--shadow);font-size:14px;animation:slideIn .3s ease;max-width:400px}
+.toast-success{border-left:4px solid var(--green)}
+.toast-error{border-left:4px solid var(--red)}
+.toast-info{border-left:4px solid var(--accent)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+footer{text-align:center;padding:32px 20px;color:var(--text-dim);font-size:13px;border-top:1px solid var(--border);margin-top:40px}
+footer a{color:var(--accent);text-decoration:none}
+footer a:hover{text-decoration:underline}
+@media(max-width:768px){.container{padding:12px}.search-box{flex-direction:column}.search-box input[type="text"]{min-width:auto}.btn{justify-content:center}.results-table{font-size:13px}.results-table td,.results-table th{padding:10px 12px}.results-table .col-date{display:none}.detail-header{flex-direction:column}.detail-header .actions{width:100%}.detail-header .actions .btn{flex:1;text-align:center}header h1{font-size:22px}.filters{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ 种子下载神器</h1>
+  <p>搜索种子 · 预览内容 · 极速下载 · 完全免费</p>
+</header>
+<div class="toast-container" id="toastContainer"></div>
+<div class="container">
+  <section class="search-section">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="输入关键词搜索，例如 ubuntu、vim、python..." autofocus>
+      <button class="btn btn-primary" id="searchBtn">🔍 搜索</button>
+      <button class="btn btn-accent" id="trendingBtn">🔥 热门</button>
+    </div>
+    <div class="filters">
+      <label><input type="checkbox" value="movie" checked> 🎬 电影</label>
+      <label><input type="checkbox" value="tv" checked> 📺 剧集</label>
+      <label><input type="checkbox" value="game" checked> 🎮 游戏</label>
+      <label><input type="checkbox" value="music" checked> 🎵 音乐</label>
+      <label><input type="checkbox" value="app" checked> 💻 软件</label>
+      <label><input type="checkbox" value="other" checked> 📦 其他</label>
+      <span style="color:var(--text-dim);font-size:13px;margin-left:auto;" id="resultCount">搜索互联网种子资源</span>
+    </div>
+    <details class="manual-input">
+      <summary>📎 手动输入 Magnet 链接 / Torrent 链接 / Info Hash</summary>
+      <div class="input-group">
+        <input type="text" id="manualLinkInput" placeholder="magnet:?xt=urn:btih:... 或 infohash 或 .torrent URL">
+        <button class="btn btn-primary btn-sm" id="manualAddBtn">+ 添加</button>
+      </div>
+    </details>
+  </section>
+  <section id="resultsSection">
+    <div id="resultsContent">
+      <div class="status" id="initialStatus">
+        <div style="font-size:48px;margin-bottom:12px;">🔎</div>
+        <p style="font-size:16px;font-weight:500;">输入关键词开始搜索</p>
+        <p style="font-size:13px;color:var(--text-dim);">搜索全球多个种子索引站，获取最新资源</p>
+      </div>
+    </div>
+  </section>
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <div class="info">
+        <h2 id="detailName">名称</h2>
+        <div class="meta">
+          <span id="detailSize">📦 0 B</span>
+          <span id="detailSeed">🌱 0</span>
+          <span id="detailLeech">🐛 0</span>
+          <span id="detailDate">📅 未知</span>
+          <span id="detailSource">🌐 来源</span>
+          <span id="detailHash">🔑 <code style="font-size:11px;background:var(--bg-input);padding:1px 5px;border-radius:3px;" id="detailHashValue">无</code></span>
+        </div>
+        <div class="magnet-link" style="margin-top:10px;display:flex;gap:6px;align-items:stretch;">
+          <input type="text" id="detailMagnetInput" readonly
+            style="flex:1;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;font-family:monospace;"
+            placeholder="磁力链接将在这里显示">
+          <button class="btn btn-sm" id="copyMagnetBtn"
+            style="background:var(--accent);color:#fff;white-space:nowrap;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;font-size:13px;">
+            📋 复制链接
+          </button>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-accent btn-sm" id="downloadMagnetBtn">⚡ 下载种子</button>
+        <button class="btn btn-primary btn-sm" id="previewBtn">👁 预览</button>
+        <button class="btn btn-sm" style="background:var(--bg-input);color:var(--text);" id="closeDetailBtn">✕ 关闭</button>
+      </div>
+    </div>
+    <div class="detail-body" id="detailBody">
+      <div class="tabs" id="fileTabs">
+        <button class="active" data-tab="files">📂 文件列表</button>
+        <button data-tab="preview">👁 内容预览</button>
+        <button data-tab="desc">📝 描述</button>
+      </div>
+      <div id="tabContent">
+        <div id="tabFiles" class="tab-pane">
+          <p style="color:var(--text-dim);font-size:14px;">点击「预览」或「下载种子」查看文件列表</p>
+        </div>
+        <div id="tabPreview" class="tab-pane" style="display:none;">
+          <p style="color:var(--text-dim);font-size:14px;">下载完成后可预览内容</p>
+        </div>
+        <div id="tabDesc" class="tab-pane" style="display:none;">
+          <p style="color:var(--text-dim);font-size:14px;" id="detailDescription">暂无描述信息</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="download-manager" id="downloadManager">
+    <div class="dl-header">
+      <h3>📥 下载管理</h3>
+      <button class="btn btn-danger btn-sm" id="clearCompletedBtn">清除已完成</button>
+    </div>
+    <div id="downloadList"></div>
+  </div>
+</div>
+<footer>
+  <p>⚡ 种子下载神器 — 基于 <a href="https://webtorrent.io/" target="_blank">WebTorrent</a> 构建 · 数据来源: Bitsearch + 海盗湾(TPB)</p>
+  <p style="margin-top:4px;">🛡 不存储任何种子文件，不追踪用户行为</p>
+</footer>
+
+<script>
+(function(){
+'use strict';
+
+/* ========== CORS 代理列表（按优先级） ========== */
+var CORS_PROXIES = [
+  'https://api.codetabs.com/v1/proxy?quest=',  // ✅ 已验证可用
+  'https://api.allorigins.win/raw?url=',
+  'https://api.allorigins.win/get?url='
+];
+
+/* ========== 搜索源配置 ========== */
+var SEARCH_SOURCES = [
+  // 源1: Bitsearch — 基于 DHT 网络，完美支持中英文搜索 ✅
+  { name: 'Bitsearch', proxy: CORS_PROXIES, url: function(q) { return 'https://bitsearch.to/api/v1/search?q='+encodeURIComponent(q)+'&page=1'; }, parse: function(data) {
+    if(!data||!data.results||!Array.isArray(data.results))return[];
+    return data.results.filter(function(i){return i.infohash&&i.title}).map(function(i){return {
+      name: i.title, size: parseInt(i.size)||0, seeders: parseInt(i.seeders)||0,
+      leechers: parseInt(i.leechers)||0, date: i.updatedAt||i.createdAt||'',
+      infoHash: i.infohash||'', source: '🔍Bit', desc: '', category: String(i.category||''),
+      magnet: i.infohash?'magnet:?xt=urn:btih:'+i.infohash+'&dn='+encodeURIComponent(i.title)+'&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.coppersurfer.tk:6969/announce&tr=udp://tracker.leechers-paradise.org:6969&tr=wss://tracker.btorrent.xyz':''
+    }});
+  }},
+  // 源2: 海盗湾 (TPB) — 英文搜索强大，作为补充源
+  { name: '海盗湾', proxy: CORS_PROXIES, url: function(q) { return 'https://apibay.org/q.php?q='+encodeURIComponent(q)+'&cat=0'; }, parse: function(data) {
+    if(!data||!Array.isArray(data))return[];
+    return data.filter(function(i){return i.id&&i.name}).map(function(i){return {
+      name: i.name, size: parseInt(i.size)||0, seeders: parseInt(i.seeders)||0,
+      leechers: parseInt(i.leechers)||0, date: i.added?new Date(i.added*1000).toISOString().split('T')[0]:'',
+      infoHash: i.info_hash||'', source: '🏴‍☠️TPB', desc: i.descr||'', category: i.category||'',
+      magnet: i.info_hash?'magnet:?xt=urn:btih:'+i.info_hash+'&dn='+encodeURIComponent(i.name)+'&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.coppersurfer.tk:6969/announce&tr=udp://tracker.leechers-paradise.org:6969&tr=wss://tracker.btorrent.xyz':''
+    }});
+  }}
+];
+
+/* ========== 尝试多个代理获取 ========== */
+function tryFetch(proxies, rawUrl, timeout){
+  var first = proxies && proxies.length>0 ? proxies.slice() : [''];
+  function attempt(idx){
+    if(idx >= first.length) return Promise.reject(new Error('所有代理均失败'));
+    var url = first[idx] ? first[idx] + encodeURIComponent(rawUrl) : rawUrl;
+    return fetch(url, { signal: AbortSignal.timeout(timeout||8000) })
+      .then(function(r){
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        return r.json();
+      })
+      .catch(function(err){
+        return attempt(idx+1);
+      });
+  }
+  return attempt(0);
+}
+
+/* ========== STATE ========== */
+var results=[],ads=new Map(),wt=null,cur=null;
+
+/* ========== HELPERS ========== */
+function e(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function fb(b){if(!b||b===0)return'0 B';var u=['B','KB','MB','GB','TB'],k=1024,i=Math.floor(Math.log(b)/Math.log(k));return(b/Math.pow(k,i)).toFixed(i>0?1:0)+' '+u[i]}
+function fs(b){return fb(b)+'/s'}
+function fd(d){if(!d)return'未知';try{var t=new Date(d);if(isNaN(t))return d;var df=(Date.now()-t)/1000;if(df<60)return'刚刚';if(df<3600)return Math.floor(df/60)+'分钟前';if(df<86400)return Math.floor(df/3600)+'小时前';if(df<2592000)return Math.floor(df/86400)+'天前';return t.toLocaleDateString('zh-CN')}catch(e){return d}}
+function sc(s){var n=parseInt(s)||0;return n>=50?'seed-high':n>=10?'seed-mid':'seed-low'}
+function cat(n){var na=(n||'').toLowerCase();if(/1080|2160|4k|bluray|hdr|movie|film|\.(mkv|mp4|avi|mov)$/i.test(na))return'movie';if(/s\d+e\d|season|episode/i.test(na))return'tv';if(/game|\.(iso|nsp|xci)$/i.test(na))return'game';if(/mp3|flac|wav|aac|album/i.test(na))return'music';if(/windows|macos|linux|software|apk|\.(exe|dmg)$/i.test(na))return'app';return'other'}
+function cb(n){var na=(n||'').toLowerCase();if(/1080|2160|4k|bluray|hdr|2160p/i.test(na))return'<span class="badge badge-movie">4K</span>';if(/movie|film|\[电影\]|\.mkv|\.mp4|\.avi/i.test(na))return'<span class="badge badge-movie">电影</span>';if(/s\d+e\d|season|episode|\[剧集\]/i.test(na))return'<span class="badge badge-tv">剧集</span>';if(/game|\[游戏\]|\.iso|\.nsp|\.xci/i.test(na))return'<span class="badge badge-game">游戏</span>';if(/mp3|flac|wav|aac|\[音乐\]|album/i.test(na))return'<span class="badge badge-music">音乐</span>';if(/windows|macos|linux|software|apk|\.exe|\.dmg/i.test(na))return'<span class="badge badge-app">软件</span>';return'<span class="badge badge-other">其他</span>'}
+function gh(i){return i.infoHash||i.infohash||i.hash||''}
+function gm(i){if(i.magnet)return i.magnet;var h=gh(i);if(!h)return'';return'magnet:?xt=urn:btih:'+h+'&dn='+encodeURIComponent(i.name||'x')+'&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.internetwarriors.net:1337/announce&tr=udp://tracker.coppersurfer.tk:6969/announce&tr=udp://tracker.leechers-paradise.org:6969&tr=wss://tracker.openwebtorrent.com&tr=wss://tracker.btorrent.xyz'}
+function to(m,t,d){t=t||'info';d=d||3500;var el=document.getElementById('toastContainer');if(!el)return;var x=document.createElement('div');x.className='toast toast-'+t;x.textContent=m;el.appendChild(x);setTimeout(function(){x.style.opacity='0';x.style.transition='opacity .3s';setTimeout(function(){x.remove()},300)},d)}
+function gwt(){if(wt)return wt;try{wt=new WebTorrent({tracker:{announce:['udp://tracker.opentrackr.org:1337/announce','udp://tracker.internetwarriors.net:1337/announce','udp://tracker.leechers-paradise.org:6969/announce','udp://tracker.coppersurfer.tk:6969/announce','udp://exodus.desync.com:6969/announce','udp://open.demonii.com:1337/announce','udp://tracker.pirateparty.gr:6969/announce','udp://tracker.cyberia.is:6969/announce','udp://tracker.tiny-vps.com:6969/announce','udp://tracker.moeking.me:6969/announce','wss://tracker.btorrent.xyz','wss://tracker.openwebtorrent.com','wss://tracker.fastcast.nz']}})}catch(e){console.warn('WT:',e.message);return null}return wt}
+function fic(n){var e=(n||'').split('.').pop().toLowerCase(),ic={mp4:'🎬',mkv:'🎬',avi:'🎬',mov:'🎬',mp3:'🎵',flac:'🎵',wav:'🎵',jpg:'🖼',png:'🖼',gif:'🖼',pdf:'📄',doc:'📄',zip:'📦',rar:'📦','7z':'📦',exe:'⚙',dmg:'⚙',apk:'📱',txt:'📝',iso:'💿',nsp:'🎮',xci:'🎮'};return ic[e]||'📄'}
+function st(t){document.querySelectorAll('#fileTabs button').forEach(function(b){b.classList.remove('active')});document.querySelectorAll('.tab-pane').forEach(function(p){p.style.display='none'});var b=document.querySelector('#fileTabs button[data-tab="'+t+'"]');if(b)b.classList.add('active');var pane=document.getElementById(t==='files'?'tabFiles':t==='preview'?'tabPreview':'tabDesc');if(pane)pane.style.display='block'}
+
+/* ========== SEARCH ========== */
+function search(q){
+  var c=document.getElementById('resultsContent');if(!c)return;
+  c.innerHTML='<div class="status"><div class="spinner"></div><p>正在搜索 "<strong>'+e(q)+'</strong>" ...</p><p style="font-size:13px;color:var(--text-dim);margin-top:8px;">正在查询: '+SEARCH_SOURCES.map(function(s){return s.name}).join(' · ')+'</p></div>';
+  document.getElementById('resultCount').textContent='搜索中...';
+
+  var promises = [];
+  var sourceCounts = {};
+  var sourceErrors = [];
+
+  SEARCH_SOURCES.forEach(function(src){
+    var rawUrl = src.url(q);
+
+    var p;
+    if(src.proxy && src.proxy.length > 0){
+      // 通过 CORS 代理（带多代理 fallback）
+      p = tryFetch(src.proxy, rawUrl, 8000)
+        .then(function(data){
+          var items = src.parse(data);
+          if(items.length > 0) sourceCounts[src.name] = (sourceCounts[src.name]||0) + items.length;
+          return items;
+        })
+        .catch(function(err){
+          sourceErrors.push(src.name+': '+err.message);
+          return [];
+        });
+    } else {
+      // 直连（无代理 — 本地服务器环境有效）
+      p = fetch(rawUrl, { signal: AbortSignal.timeout(6000) })
+        .then(function(r){
+          if(!r.ok)throw new Error('HTTP '+r.status);
+          return r.json();
+        })
+        .then(function(data){
+          var items = src.parse(data);
+          if(items.length > 0) sourceCounts[src.name] = (sourceCounts[src.name]||0) + items.length;
+          return items;
+        })
+        .catch(function(err){
+          sourceErrors.push(src.name+': '+err.message);
+          return [];
+        });
+    }
+
+    promises.push(p);
+  });
+
+  Promise.all(promises)
+    .then(function(resultsArray){
+      var all = [];
+      resultsArray.forEach(function(items){ all = all.concat(items); });
+
+      // 关键词相关性过滤：只保留名称中包含搜索词的结果
+      // 中文搜索时 TPB 会返回无关结果，此过滤确保准确性
+      var queryKeywords = q.toLowerCase().split(/[\s,，]+/).filter(function(k){ return k.length > 0; });
+      if(queryKeywords.length > 0){
+        var before = all.length;
+        all = all.filter(function(item){
+          var name = (item.name||'').toLowerCase();
+          // 只要名称包含任何一个关键词即保留
+          return queryKeywords.some(function(kw){
+            return name.indexOf(kw) !== -1;
+          });
+        });
+        // 如果过滤后没有结果，放宽限制：只要求名称包含关键词中的至少一个字/词
+        if(all.length === 0 && queryKeywords.length > 0){
+          all = resultsArray.reduce(function(a, items){ return a.concat(items); }, []);
+          all = all.filter(function(item){
+            var name = (item.name||'').toLowerCase();
+            // 检查是否包含任意一个单字（对中文很有用）
+            var chars = q.replace(/[\s,，\.\+\(\)\[\]\d\-_]+/g, '');
+            for(var i = 0; i < chars.length; i++){
+              if(name.indexOf(chars[i]) !== -1) return true;
+            }
+            return false;
+          });
+        }
+      }
+
+      // 按做种数排序
+      all.sort(function(a,b){ return (b.seeders||0) - (a.seeders||0); });
+
+      // 去重（按 infoHash）
+      var seen = {};
+      all = all.filter(function(item){
+        var key = item.infoHash || item.name;
+        if(seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+
+      // 限最多80个
+      all = all.slice(0, 80);
+
+      results = all.map(function(item){
+        return {
+          name: item.name, size: item.size, seeders: item.seeders,
+          leechers: item.leechers, date: item.date, infoHash: item.infoHash,
+          source: item.source, desc: item.desc||'', category: item.category||'',
+          magnet: item.magnet||''
+        };
+      });
+
+      if(results.length > 0){
+        render(results);
+        var srcInfo = Object.keys(sourceCounts).map(function(k){
+          return k+'('+sourceCounts[k]+')';
+        }).join(' ');
+        document.getElementById('resultCount').textContent='共 '+results.length+' 个结果 · '+srcInfo;
+        to('✅ 找到 '+results.length+' 个种子','success');
+      } else {
+        // 无结果：检测是否为 CORS 问题
+        var isCors = sourceErrors.some(function(err){ return err.indexOf('Failed to fetch')!==-1 || err.indexOf('NetworkError')!==-1 || err.indexOf('NetworkError')!==-1; });
+        var errHtml = '';
+        if(isCors){
+          errHtml = '<div class="status"><div style="font-size:48px;margin-bottom:12px;">🌐</div><p style="font-size:16px;font-weight:500;color:var(--yellow);">浏览器安全策略阻止了搜索</p>'
+            + '<p style="font-size:13px;color:var(--text-dim);margin-top:8px;">直接打开 HTML 文件时，浏览器限制跨域请求。</p>'
+            + '<div style="background:var(--bg-input);border-radius:8px;padding:16px;margin:16px auto;max-width:400px;text-align:left;font-size:13px;">'
+            + '<p style="margin-bottom:8px;"><strong>解决方案 (任选其一):</strong></p>'
+            + '<p style="margin-bottom:6px;">① 用 <b>Chrome/Edge</b> 打开 (推荐)</p>'
+            + '<p style="margin-bottom:6px;">② 使用 Python 启动本地服务器:</p>'
+            + '<code style="display:block;background:#1a1a24;padding:8px 12px;border-radius:4px;margin:4px 0 8px;font-size:12px;">python -m http.server 8080<br>然后访问 http://localhost:8080</code>'
+            + '<p>③ 用 Node.js:</p>'
+            + '<code style="display:block;background:#1a1a24;padding:8px 12px;border-radius:4px;margin:4px 0 0;font-size:12px;">npx serve .</code>'
+            + '</div></div>';
+        } else {
+          errHtml = '<div class="status"><div style="font-size:48px">🔍</div><p style="font-size:16px;font-weight:500;">未找到结果</p>'
+            + '<p style="font-size:13px;color:var(--text-dim);margin-top:8px;">请尝试其他关键词，或检查网络连接</p>'
+            + (sourceErrors.length > 0 ? '<p style="font-size:12px;color:var(--text-dim);margin-top:8px;">调试: '+e(sourceErrors.join('; '))+'</p>' : '')
+            + '</div>';
+        }
+        c.innerHTML = errHtml;
+        document.getElementById('resultCount').textContent='未找到结果';
+        to('⚠️ 未找到结果，请尝试其他关键词','info');
+      }
+    });
+}
+
+/* ========== RENDER ========== */
+function render(r){
+  var c=document.getElementById('resultsContent');if(!c)return;
+  if(!r||r.length===0){c.innerHTML='<div class="status"><div style="font-size:48px">🔍</div><p>无结果</p></div>';return}
+  // 把数据挂在 DOM 上，确保筛选后点击行能拿到正确对象
+  c._data = r;
+  var h='<table class="results-table"><thead><tr><th class="col-name">名称</th><th class="col-size">大小</th><th class="col-seed">🌱</th><th class="col-leech">🐛</th><th class="col-date">日期</th><th class="col-action">操作</th></tr></thead><tbody>';
+  r.forEach(function(i,idx){
+    var hsh=gh(i);h+='<tr data-index="'+idx+'"><td class="col-name"><div class="name">'+cb(i.name)+' '+e(i.name)+'</div><div class="sub">'+(i.source?'<span class="badge" style="background:var(--accent);color:#fff;padding:0 6px;border-radius:4px;font-size:11px;">'+e(i.source)+'</span> ':'')+' · '+(hsh?hsh.substr(0,8)+'...':'')+'</div></td><td class="col-size">'+fb(i.size)+'</td><td class="col-seed '+sc(i.seeders)+'">'+(parseInt(i.seeders)||0)+'</td><td class="col-leech">'+(parseInt(i.leechers)||0)+'</td><td class="col-date">'+fd(i.date)+'</td><td class="col-action"><button class="btn btn-accent btn-sm dl-btn" data-index="'+idx+'">⚡下</button><button class="btn btn-primary btn-sm detail-btn" data-index="'+idx+'" style="margin-left:4px">📂</button></td></tr>';
+  });
+  h+='</tbody></table>';c.innerHTML=h;
+  c.querySelectorAll('.dl-btn').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();dl(c._data[parseInt(this.dataset.index)])})});
+  c.querySelectorAll('.detail-btn').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();det(c._data[parseInt(this.dataset.index)])})});
+  c.querySelectorAll('tbody tr').forEach(function(b){b.addEventListener('click',function(e){if(e.target.closest('button'))return;det(c._data[parseInt(this.dataset.index)])})});
+}
+
+/* ========== DETAIL ========== */
+function det(i){
+  cur=i;var p=document.getElementById('detailPanel');
+  document.getElementById('detailName').textContent=i.name||'未知';
+  document.getElementById('detailSize').textContent='📦 '+fb(i.size);
+  document.getElementById('detailSeed').textContent='🌱 '+(i.seeders||0);
+  document.getElementById('detailLeech').textContent='🐛 '+(i.leechers||0);
+  document.getElementById('detailDate').textContent='📅 '+fd(i.date);
+  document.getElementById('detailSource').textContent='🌐 '+(i.source||'');
+  document.getElementById('detailDescription').textContent=i.desc||'暂无描述';
+  // InfoHash
+  var hsh=gh(i);
+  document.getElementById('detailHashValue').textContent=hsh||'无';
+  // Magnet 链接
+  var mg=gm(i)||i.magnet||'';
+  if(!mg && hsh){
+    mg='magnet:?xt=urn:btih:'+hsh+'&dn='+encodeURIComponent(i.name||'')+'&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.coppersurfer.tk:6969/announce';
+  }
+  document.getElementById('detailMagnetInput').value=mg;
+  st('files');
+  document.getElementById('tabFiles').innerHTML='<p style="color:var(--text-dim);font-size:14px;">点击「预览」或「下载种子」查看文件列表</p>';
+  document.getElementById('tabPreview').innerHTML='<p style="color:var(--text-dim);font-size:14px;">下载完成后可预览内容</p>';
+  p.classList.add('active');
+}
+
+/* ========== DOWNLOAD ========== */
+function dl(i){
+  var c=gwt();if(!c){to('WebTorrent 不可用，请检查网络','error');return}
+  var m=gm(i);if(!m&&i.magnet)m=i.magnet;if(!m){to('无法获取 Magnet 链接','error');return}
+  var id=Date.now()+'_'+Math.random().toString(36).substr(2,5),di={id:id,name:i.name||'未知',progress:0,speed:0,downloaded:0,total:i.size||0,peers:0,status:'connecting',torrent:null,error:''};
+  ads.set(id,di);rd();document.getElementById('downloadManager').classList.add('active');to('⏳ 连接中...','info');
+  try{
+    var t=c.add(m,{path:'downloads/'});di.torrent=t;
+    t.on('infoHash',function(){di.status='downloading';rd()});
+    t.on('download',function(){di.progress=Math.round(t.progress*100);di.speed=t.downloadSpeed;di.downloaded=t.downloaded;di.total=t.length;di.peers=t.numPeers;di.status='downloading';rd()});
+    t.on('done',function(){di.progress=100;di.status='completed';di.speed=0;rd();to('✅ '+di.name+' 下载完成','success')});
+    t.on('error',function(e){console.error('DL err:',e);di.status='error';di.error=e.message||String(e);rd();to('❌ 下载失败: '+(e.message||String(e)),'error')});
+    t.on('warning',function(w){console.warn('DL warn:',w)});
+    setTimeout(function(){if(di.status==='connecting'){di.status='stalled';rd()}},15000);
+  }catch(e){console.error('DL exc:',e);di.status='error';di.error=e.message||String(e);rd();to('❌ 下载失败: '+(e.message||String(e)),'error')}
+}
+
+function rd(){
+  var l=document.getElementById('downloadList'),h='';
+  ads.forEach(function(d){
+    var stt={connecting:'⏳ 连接中...',downloading:'⬇ 下载中',completed:'✅ 已完成',error:'❌ 错误',stalled:'⚠ 无节点'}[d.status]||d.status;
+    var em=d.error?'<span style="color:var(--red);font-size:12px">'+e(d.error)+'</span>':'';
+    h+='<div class="dl-item"><div class="dl-name">'+e(d.name)+' <span style="font-size:12px;color:var(--text-dim)">'+stt+'</span></div><div class="dl-bar"><div class="dl-progress" style="width:'+d.progress+'%"></div></div><div class="dl-meta"><span>📊 '+d.progress+'%</span><span class="speed">'+(d.speed?fs(d.speed):'')+'</span><span>📦 '+fb(d.downloaded)+'/'+fb(d.total)+'</span><span>👥 '+(d.peers||0)+' peers</span>'+em+'</div></div>';
+  });
+  l.innerHTML=h||'<p style="padding:16px 24px;color:var(--text-dim)">暂无下载任务</p>';
+}
+
+/* ========== PREVIEW ========== */
+function pv(i){
+  var c=gwt();if(!c){to('WebTorrent 不可用','error');return}
+  var m=gm(i);if(!m&&i.magnet)m=i.magnet;if(!m){to('无法获取 Magnet','error');return}
+  to('⏳ 连接 DHT...','info');st('files');
+  document.getElementById('tabFiles').innerHTML='<div class="status"><div class="spinner"></div><p>获取文件列表...</p></div>';
+  try{
+    var t=c.add(m,{store:false});
+    t.on('metadata',function(){var h='<ul class="file-list">';if(t.files){t.files.forEach(function(f){h+='<li><span class="file-icon">'+fic(f.name)+'</span><span class="file-name">'+e(f.name)+'</span><span class="file-size">'+fb(f.length)+'</span></li>'})}h+='</ul>';document.getElementById('tabFiles').innerHTML=h;to('📂 获取到 '+(t.files?t.files.length:0)+' 个文件','success')});
+    t.on('error',function(e){document.getElementById('tabFiles').innerHTML='<p style="color:var(--red);font-size:14px">错误: '+e.message+'</p>'});
+    setTimeout(function(){if(!t.files)to('⏰ 获取超时','error')},30000);
+  }catch(e){document.getElementById('tabFiles').innerHTML='<p style="color:var(--red);font-size:14px">失败: '+e.message+'</p>';to('❌ 预览失败','error')}
+}
+
+/* ========== EVENTS ========== */
+document.getElementById('searchBtn').addEventListener('click',function(){var q=document.getElementById('searchInput').value.trim();if(!q){to('请输入关键词','error');return}search(q)});
+document.getElementById('searchInput').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('searchBtn').click()});
+document.getElementById('trendingBtn').addEventListener('click',function(){
+  var ts=['Ubuntu 24.04','Kali Linux','VS Code','Python 3.13','Node.js','VLC Media Player','Windows 11','Dune Part Two','Adobe Photoshop','FL Studio','Cyberpunk 2077','GTA 6','Game of Thrones','Oppenheimer','Docker Desktop','黑神话悟空','流浪地球','三体','狂飙','繁花','孤注一掷','满江红'];
+  var q=ts[Math.floor(Math.random()*ts.length)];
+  document.getElementById('searchInput').value=q;
+  search(q);
+  to('🔥 随机热门搜索: '+q,'info');
+});
+document.getElementById('manualAddBtn').addEventListener('click',function(){var v=document.getElementById('manualLinkInput').value.trim();if(!v){to('请输入 Magnet/InfoHash','error');return}var magnet=v,dn='手动添加';if(v.indexOf('magnet:')===0){var m=v.match(/dn=([^&]+)/);if(m)dn=decodeURIComponent(m[1])}else if(v.indexOf('http')===0){to('加载种子...','info');dl({name:'远程种子',magnet:v,size:0,seeders:0,leechers:0,date:'',source:'URL'});return}else{var hx=v.replace(/[^a-fA-F0-9]/g,'');if(hx.length!==40){to('InfoHash 格式错误','error');return}magnet='magnet:?xt=urn:btih:'+hx+'&dn=manual&tr=udp://tracker.opentrackr.org:1337/announce'}dl({name:dn,magnet:magnet,infoHash:v,size:0,seeders:0,leechers:0,date:'',source:'手动输入'});document.getElementById('manualLinkInput').value=''});
+document.getElementById('closeDetailBtn').addEventListener('click',function(){document.getElementById('detailPanel').classList.remove('active')});
+document.getElementById('downloadMagnetBtn').addEventListener('click',function(){if(cur)dl(cur)});
+document.getElementById('previewBtn').addEventListener('click',function(){if(cur)pv(cur)});
+document.getElementById('clearCompletedBtn').addEventListener('click',function(){ads.forEach(function(d,i){if(d.status==='completed'||d.status==='error'){if(d.torrent)try{d.torrent.destroy()}catch(e){}ads.delete(i)}});rd();if(ads.size===0)document.getElementById('downloadManager').classList.remove('active');to('已清除','info')});
+document.getElementById('copyMagnetBtn').addEventListener('click',function(){
+  var inp=document.getElementById('detailMagnetInput');if(!inp||!inp.value){to('没有可复制的链接','error');return}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(inp.value).then(function(){to('✅ 磁力链接已复制','success')}).catch(function(){inp.select();document.execCommand('copy');to('✅ 已复制','success')})}else{inp.select();document.execCommand('copy');to('✅ 已复制','success')}
+});
+document.querySelectorAll('.filters input[type=\"checkbox\"]').forEach(function(cb){cb.addEventListener('change',function(){var chk=Array.from(document.querySelectorAll('.filters input:checked')).map(function(c){return c.value});var f=results.filter(function(i){return chk.indexOf(cat(i.name))!==-1});render(f);document.getElementById('resultCount').textContent='共 '+f.length+' 个结果（筛选）'})});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')document.getElementById('detailPanel').classList.remove('active');if(e.ctrlKey&&e.key==='f'){e.preventDefault();document.getElementById('searchInput').focus()}});
+to('🟢 就绪，输入关键词搜索互联网资源','info');
+console.log('⚡ Torrent Downloader loaded (external search mode)');
+})();
+</script>
+</body>
+</html>
