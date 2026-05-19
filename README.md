@@ -24,14 +24,8 @@
 
 ## 🚀 快速开始
 
-### 方式一：直接使用（推荐）
 
-打开浏览器直接访问：
-```
-https://your-github-username.github.io/torrent-downloader/
-```
-
-### 方式二：本地运行
+### 方式一：本地运行
 
 ```bash
 # 克隆仓库
@@ -65,7 +59,7 @@ open http://localhost:8080
 
 ## 📷 截图预览
 
-![搜索界面](https://via.placeholder.com/800x450?text=搜索界面+预览)
+![搜索界面](界面.png）
 
 ---
 
